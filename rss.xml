@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<rss version="2.0">
+  <channel>
+    <title>Beacon Heartbeats Blog</title>
+    <link>https://luisalias007-cmyk.github.io/beacon-heartbeats-blog/</link>
+    <description>Beacon tutorials for AI agent coordination.</description>
+    <language>en-us</language>
+    <lastBuildDate>Mon, 01 Jun 2026 18:45:00 GMT</lastBuildDate>
+    <item>
+      <title>Getting Started with Beacon 2.x: Heartbeats for AI Agents</title>
+      <link>https://luisalias007-cmyk.github.io/beacon-heartbeats-blog/</link>
+      <guid>https://luisalias007-cmyk.github.io/beacon-heartbeats-blog/</guid>
+      <pubDate>Mon, 01 Jun 2026 18:45:00 GMT</pubDate>
+      <description>A practical Beacon 2.6+ tutorial covering signed heartbeats, contracts, mayday signals, and a copy-paste Python heartbeat demo.</description>
+    </item>
+  </channel>
+</rss>
