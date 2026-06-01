@@ -1,0 +1,271 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Beacon Contracts and Mayday Signals for Reliable AI Agents</title>
+  <meta name="description" content="A practical Beacon tutorial for combining signed heartbeats, contracts, and mayday escalation in AI agent systems.">
+  <link rel="alternate" type="application/rss+xml" title="Beacon Heartbeats Blog" href="./rss.xml">
+  <style>
+    :root {
+      color-scheme: light dark;
+      --bg: #f7f8fb;
+      --fg: #17202a;
+      --muted: #536273;
+      --panel: #ffffff;
+      --accent: #0b6bcb;
+      --border: #d9e1ec;
+      --code: #101827;
+    }
+
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg: #101418;
+        --fg: #e9eef5;
+        --muted: #a8b4c2;
+        --panel: #171d24;
+        --accent: #7db7ff;
+        --border: #2e3a47;
+        --code: #0b1117;
+      }
+    }
+
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--fg);
+      font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      line-height: 1.65;
+    }
+
+    main {
+      width: min(920px, calc(100% - 32px));
+      margin: 0 auto;
+      padding: 48px 0 72px;
+    }
+
+    article {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: clamp(22px, 5vw, 56px);
+      box-shadow: 0 18px 50px rgba(12, 24, 40, 0.08);
+    }
+
+    h1 {
+      margin: 0 0 12px;
+      font-size: clamp(2rem, 4vw, 3.25rem);
+      line-height: 1.08;
+      letter-spacing: 0;
+    }
+
+    h2 {
+      margin-top: 36px;
+      line-height: 1.2;
+      letter-spacing: 0;
+    }
+
+    a {
+      color: var(--accent);
+    }
+
+    .meta {
+      color: var(--muted);
+      margin-bottom: 32px;
+    }
+
+    pre {
+      overflow: auto;
+      background: var(--code);
+      color: #e8f1ff;
+      padding: 18px;
+      border-radius: 8px;
+      font-size: 0.92rem;
+      line-height: 1.5;
+    }
+
+    code {
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+    }
+
+    .note {
+      border-left: 4px solid var(--accent);
+      padding: 12px 16px;
+      background: color-mix(in srgb, var(--accent) 8%, transparent);
+      border-radius: 0 6px 6px 0;
+    }
+  </style>
+</head>
+<body>
+<main>
+<article>
+  <h1>Beacon Contracts and Mayday Signals for Reliable AI Agents</h1>
+  <p class="meta">Published June 1, 2026. A second Beacon tutorial focused on contracts, signed liveness, and escalation.</p>
+
+  <p>
+    The first Beacon tutorial on this site showed how a signed heartbeat can prove that an AI agent is still alive. This second tutorial starts one layer higher: what should a coordinator do with that heartbeat? A raw "alive" signal is useful, but production agent systems also need expectations. A worker that checks in every five minutes may be healthy for one task and dangerously late for another. Beacon becomes more powerful when a heartbeat is tied to a contract.
+  </p>
+
+  <p>
+    In this article, a contract is a simple operational promise. It does not need to be a legal document or a blockchain artifact. It can be a JSON object that says which agent owns a task, what role it plays, how often it should send a heartbeat, and how long silence is tolerated before the system escalates. The official <a href="https://github.com/Scottcjn/beacon-skill">beacon-skill repository</a> provides the broader Beacon protocol and transport context. The pattern below is a small, copy-paste friendly way to apply those ideas in your own orchestration layer.
+  </p>
+
+  <h2>Why Contracts Matter</h2>
+  <p>
+    Multi-agent failures are often coordination failures. One agent thinks a retrieval job is still running. Another agent starts a duplicate job. A human sees no progress but cannot tell whether the system is waiting, crashed, rate limited, or blocked by policy. Heartbeats answer "is the agent speaking?" Contracts answer "is the agent speaking often enough for this responsibility?"
+  </p>
+
+  <p>
+    A good Beacon contract should include at least four fields: a stable contract id, the expected role, a heartbeat interval, and a mayday threshold. The heartbeat interval is the desired cadence. The mayday threshold is the point where silence stops being normal and becomes actionable. You can add inputs, outputs, retry policy, payment terms, or peer-review requirements later, but those four fields are enough to make liveness measurable.
+  </p>
+
+  <pre><code>{
+  "contract_id": "repo-index-nightly",
+  "role": "retrieval-worker",
+  "heartbeat_interval_seconds": 60,
+  "mayday_after_seconds": 180
+}</code></pre>
+
+  <h2>Signed Heartbeat Plus Mayday</h2>
+  <p>
+    The script below creates an Ed25519 identity, signs a heartbeat for a contract, verifies the envelope, simulates a missed service-level objective, and emits a signed mayday signal. It uses the same core idea as Beacon 2.x envelopes: canonical payload, public key, signature, timestamp, nonce, and an agent id derived from the public key.
+  </p>
+
+  <pre><code>python -m pip install cryptography</code></pre>
+
+  <pre><code>import base64
+import hashlib
+import json
+import secrets
+import time
+
+from cryptography.hazmat.primitives.asymmetric.ed25519 import (
+    Ed25519PrivateKey,
+    Ed25519PublicKey,
+)
+from cryptography.hazmat.primitives.serialization import Encoding, PublicFormat
+
+
+def canonical(data):
+    return json.dumps(data, sort_keys=True, separators=(",", ":")).encode()
+
+
+class AgentIdentity:
+    def __init__(self):
+        self.private = Ed25519PrivateKey.generate()
+        self.public = self.private.public_key()
+        self.public_bytes = self.public.public_bytes(Encoding.Raw, PublicFormat.Raw)
+        self.agent_id = "bcn_" + hashlib.sha256(self.public_bytes).hexdigest()[:12]
+
+    def sign(self, payload):
+        message = canonical(payload)
+        return {
+            "beacon_version": "2.x",
+            "payload": payload,
+            "public_key": base64.b64encode(self.public_bytes).decode(),
+            "signature": base64.b64encode(self.private.sign(message)).decode(),
+        }
+
+
+def verify_envelope(envelope, max_age_seconds=300):
+    payload = envelope["payload"]
+    public_bytes = base64.b64decode(envelope["public_key"])
+    signature = base64.b64decode(envelope["signature"])
+    public_key = Ed25519PublicKey.from_public_bytes(public_bytes)
+    public_key.verify(signature, canonical(payload))
+
+    expected_agent_id = "bcn_" + hashlib.sha256(public_bytes).hexdigest()[:12]
+    if payload["agent_id"] != expected_agent_id:
+        raise ValueError("agent id does not match public key")
+    if abs(time.time() - payload["timestamp"]) > max_age_seconds:
+        raise ValueError("stale beacon")
+    return payload
+
+
+contract = {
+    "contract_id": "repo-index-nightly",
+    "role": "retrieval-worker",
+    "heartbeat_interval_seconds": 60,
+    "mayday_after_seconds": 180,
+}
+
+agent = AgentIdentity()
+heartbeat_payload = {
+    "kind": "heartbeat",
+    "agent_id": agent.agent_id,
+    "contract_id": contract["contract_id"],
+    "status": "alive",
+    "timestamp": int(time.time()),
+    "nonce": secrets.token_hex(8),
+}
+heartbeat = agent.sign(heartbeat_payload)
+verified = verify_envelope(heartbeat)
+print("accepted", verified["kind"], "for", verified["contract_id"])
+
+last_seen = time.time() - 240
+if time.time() - last_seen > contract["mayday_after_seconds"]:
+    mayday = agent.sign({
+        "kind": "mayday",
+        "agent_id": agent.agent_id,
+        "contract_id": contract["contract_id"],
+        "reason": "heartbeat missed service-level objective",
+        "safe_to_retry": True,
+        "timestamp": int(time.time()),
+        "nonce": secrets.token_hex(8),
+    })
+    verified_mayday = verify_envelope(mayday)
+    print("escalate", verified_mayday["kind"], verified_mayday["reason"])</code></pre>
+
+  <p>
+    Expected output:
+  </p>
+
+  <pre><code>accepted heartbeat for repo-index-nightly
+escalate mayday heartbeat missed service-level objective</code></pre>
+
+  <h2>The Coordinator Loop</h2>
+  <p>
+    A coordinator can keep this simple. Store the latest verified heartbeat per <code>contract_id</code>. Reject unsigned, stale, or mismatched envelopes. Compare <code>now - last_seen</code> to <code>mayday_after_seconds</code>. If the threshold is exceeded, create an escalation event. That escalation may be a Beacon mayday, a retry task, a human notification, or a handoff to a backup agent.
+  </p>
+
+  <pre><code>for contract in contracts:
+    last_seen = heartbeat_store.get(contract["contract_id"])
+    if not last_seen:
+        continue
+    if time.time() - last_seen > contract["mayday_after_seconds"]:
+        emit_mayday(contract)</code></pre>
+
+  <p>
+    The important design choice is that the coordinator should verify before it updates state. If anyone can spoof a heartbeat, then the system can be tricked into thinking a worker is alive. If old heartbeats can be replayed, a dead worker can look healthy. That is why the example checks both the Ed25519 signature and freshness. In a real deployment, you should also store used nonces for the freshness window and reject duplicates.
+  </p>
+
+  <h2>How This Compares To Plain Health Checks</h2>
+  <p>
+    A traditional health check asks a service whether it is up. Beacon-style heartbeats are more expressive because they travel as signed messages and can carry coordination context. The message can say "I am alive for this contract", "I completed this output", "I need help", or "I am safe to retry after this time." That makes it better suited for agents that move across transports, communicate with peers, or publish status outside a single private cluster.
+  </p>
+
+  <p>
+    This does not mean every health check needs Beacon. If you have one process behind one load balancer, a normal HTTP health endpoint is enough. Beacon becomes attractive when there are multiple agents, partial trust, human review, cross-platform transport, or economic coordination. The signed envelope gives receivers a stable object to verify and archive.
+  </p>
+
+  <h2>Practical Extensions</h2>
+  <p>
+    Once the basic loop works, add three things. First, persist contracts and heartbeat history so restarts do not erase state. Second, add replay protection with a short-lived nonce cache. Third, connect mayday signals to policy: retry harmless jobs automatically, ask a human before spending money, and pause tasks that could duplicate irreversible work.
+  </p>
+
+  <p>
+    You can also publish an agent card at <code>/.well-known/beacon.json</code> when your agent is meant to be discovered. The card can advertise the agent id, public key, supported transports, and contact endpoints. Combined with contracts, this gives other agents enough information to know who is responsible for what and how to verify the next signal.
+  </p>
+
+  <h2>Closing Pattern</h2>
+  <p>
+    Beacon contracts and mayday signals turn liveness into a workflow. A heartbeat proves that an agent is speaking. A contract defines what silence means. A mayday tells the system how to respond. Start with one critical worker, one signed heartbeat, and one mayday rule. If that improves your operational clarity, expand the same pattern to the rest of your agent network.
+  </p>
+
+  <p>
+    Related: <a href="./">Getting Started with Beacon 2.x: Heartbeats for AI Agents</a>.
+  </p>
+</article>
+</main>
+</body>
+</html>
