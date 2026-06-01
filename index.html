@@ -1,0 +1,263 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Getting Started with Beacon 2.x: Heartbeats for AI Agents</title>
+  <meta name="description" content="A practical Beacon tutorial for AI agent heartbeats, signed envelopes, contracts, and mayday signals.">
+  <link rel="alternate" type="application/rss+xml" title="Beacon Heartbeats Blog" href="./rss.xml">
+  <style>
+    :root {
+      color-scheme: light dark;
+      --bg: #f7f8fb;
+      --fg: #17202a;
+      --muted: #536273;
+      --panel: #ffffff;
+      --accent: #0b6bcb;
+      --border: #d9e1ec;
+      --code: #101827;
+    }
+
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg: #101418;
+        --fg: #e9eef5;
+        --muted: #a8b4c2;
+        --panel: #171d24;
+        --accent: #7db7ff;
+        --border: #2e3a47;
+        --code: #0b1117;
+      }
+    }
+
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--fg);
+      font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      line-height: 1.65;
+    }
+
+    main {
+      width: min(920px, calc(100% - 32px));
+      margin: 0 auto;
+      padding: 48px 0 72px;
+    }
+
+    article {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: clamp(22px, 5vw, 56px);
+      box-shadow: 0 18px 50px rgba(12, 24, 40, 0.08);
+    }
+
+    h1 {
+      margin: 0 0 12px;
+      font-size: clamp(2rem, 4vw, 3.25rem);
+      line-height: 1.08;
+      letter-spacing: 0;
+    }
+
+    h2 {
+      margin-top: 36px;
+      line-height: 1.2;
+      letter-spacing: 0;
+    }
+
+    p, li {
+      font-size: 1rem;
+    }
+
+    a {
+      color: var(--accent);
+    }
+
+    .meta {
+      color: var(--muted);
+      margin-bottom: 32px;
+    }
+
+    pre {
+      overflow: auto;
+      background: var(--code);
+      color: #e8f1ff;
+      padding: 18px;
+      border-radius: 8px;
+      font-size: 0.92rem;
+      line-height: 1.5;
+    }
+
+    code {
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+    }
+
+    .note {
+      border-left: 4px solid var(--accent);
+      padding: 12px 16px;
+      background: color-mix(in srgb, var(--accent) 8%, transparent);
+      border-radius: 0 6px 6px 0;
+    }
+  </style>
+</head>
+<body>
+<main>
+<article>
+  <h1>Getting Started with Beacon 2.x: Heartbeats for AI Agents</h1>
+  <p class="meta">Published June 1, 2026. Tutorial for Beacon 2.6+ concepts, verified with a local signed-heartbeat example.</p>
+
+  <p>
+    Beacon is an agent coordination protocol: a compact way for autonomous or semi-autonomous agents to say who they are, what they are doing, whether they are alive, and what kind of collaboration they want. The official
+    <a href="https://github.com/Scottcjn/beacon-skill">beacon-skill repository</a> describes Beacon as the social and economic coordination layer that sits beside task protocols and tool protocols. In practice, that means Beacon is useful for the part of an agent system that usually gets improvised: presence, liveness, discovery, trust, status, and small coordination messages.
+  </p>
+
+  <p>
+    This tutorial focuses on a heartbeat. A heartbeat is intentionally boring, and that is why it is valuable. If an agent can publish a signed heartbeat every few seconds or minutes, other agents can answer simple operational questions: is the indexing worker still alive, did the research agent go idle, did the scheduler change state, and when should a human or fallback agent intervene? Beacon 2.6 and later make this pattern concrete by wrapping messages in signed envelopes with an agent identity, a nonce, and a timestamp. The signature gives peers a way to distinguish a real update from a copied or forged status line.
+  </p>
+
+  <h2>The Mental Model</h2>
+  <p>
+    Think of a Beacon message as three layers. The payload says what happened: for example, <code>kind: heartbeat</code>, <code>status: alive</code>, or <code>kind: mayday</code>. The identity says which agent is speaking. The signature proves that the holder of the private key approved the payload. Transport is separate. You can move the envelope through a webhook, a local UDP bus, a social-style feed, a task board, or a RustChain-related channel. That separation keeps the message portable.
+  </p>
+
+  <p>
+    This is different from a task delegation protocol. A task protocol might say "summarize this repository" or "run this tool". Beacon says "this agent exists, here is its current status, here is how to reach it, and here is a signed coordination signal." In a multi-agent system, both are needed. Tools make agents capable; heartbeats make them observable.
+  </p>
+
+  <h2>Install The Official Package</h2>
+  <p>
+    On Linux, macOS, or WSL, install the official CLI from PyPI:
+  </p>
+
+  <pre><code>python3 -m venv .venv
+. .venv/bin/activate
+pip install beacon-skill
+beacon identity new
+beacon webhook serve --port 8402</code></pre>
+
+  <p>
+    In another terminal, send a local loopback message:
+  </p>
+
+  <pre><code>. .venv/bin/activate
+beacon webhook send http://127.0.0.1:8402/beacon/inbox --kind hello --text "Hello from my agent"
+beacon inbox list --limit 1</code></pre>
+
+  <p class="note">
+    Verification note: on my Windows test environment, <code>beacon-skill==2.16.0</code> installed successfully, but the CLI imported Python's Unix-only <code>fcntl</code> module and failed before startup. The commands above follow the official README and should be run on Linux/macOS/WSL until that Windows import path is fixed.
+  </p>
+
+  <h2>A Copy-Paste Heartbeat Example</h2>
+  <p>
+    The following Python script is self-contained and runs on Windows, Linux, or macOS after installing <code>cryptography</code>. It does not replace the official Beacon CLI. Instead, it demonstrates the core Beacon heartbeat idea: derive an agent id from an Ed25519 public key, create a canonical JSON payload, sign it, and verify the envelope before trusting it.
+  </p>
+
+  <pre><code>python -m pip install cryptography</code></pre>
+
+  <pre><code>import base64
+import hashlib
+import json
+import secrets
+import time
+
+from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
+from cryptography.hazmat.primitives.serialization import Encoding, PublicFormat
+
+
+private_key = Ed25519PrivateKey.generate()
+public_key = private_key.public_key()
+public_bytes = public_key.public_bytes(Encoding.Raw, PublicFormat.Raw)
+
+agent_id = "bcn_" + hashlib.sha256(public_bytes).hexdigest()[:12]
+
+payload = {
+    "kind": "heartbeat",
+    "agent_id": agent_id,
+    "status": "alive",
+    "service": "retrieval-worker",
+    "timestamp": int(time.time()),
+    "nonce": secrets.token_hex(8),
+}
+
+canonical = json.dumps(payload, sort_keys=True, separators=(",", ":")).encode()
+signature = private_key.sign(canonical)
+
+envelope = {
+    "beacon_version": "2.x",
+    "payload": payload,
+    "public_key": base64.b64encode(public_bytes).decode(),
+    "signature": base64.b64encode(signature).decode(),
+}
+
+print(json.dumps(envelope, indent=2))
+
+# Receiver side: verify before acting on the heartbeat.
+public_key.verify(signature, canonical)
+print("verified heartbeat from", agent_id)</code></pre>
+
+  <p>
+    When this script prints <code>verified heartbeat from bcn_...</code>, you have the smallest useful heartbeat loop. A production receiver would add replay protection by storing recent nonces, reject stale timestamps, and map the status to an operational decision. For example, if a heartbeat has not arrived in five minutes, a coordinator could send a Beacon <code>mayday</code> message, pause new assignments, or ask a backup worker to take over.
+  </p>
+
+  <h2>From Heartbeats To Contracts</h2>
+  <p>
+    A heartbeat tells the network that an agent is alive. A contract tells the network what the agent is responsible for. For a small system, that contract can be a JSON document:
+  </p>
+
+  <pre><code>{
+  "contract_id": "daily-index-2026-06-01",
+  "agent_id": "bcn_example1234",
+  "role": "retrieval-worker",
+  "inputs": ["repo_url", "branch"],
+  "outputs": ["index_manifest", "status_report"],
+  "heartbeat_interval_seconds": 60,
+  "mayday_after_seconds": 300
+}</code></pre>
+
+  <p>
+    The important part is not the exact schema. The important part is that the contract and the heartbeat agree. If the contract says a worker should check in every 60 seconds, a coordinator can treat silence as a measurable failure instead of a vague feeling that "the agent got stuck." Beacon turns the invisible state of agent coordination into signed, inspectable messages.
+  </p>
+
+  <h2>Mayday Signals</h2>
+  <p>
+    Heartbeats are normal operation. Mayday signals are the exception path. A good mayday message should be short, signed, and actionable. It should say which agent is blocked, what changed, what help is needed, and whether the task can be safely retried. A useful pattern is:
+  </p>
+
+  <pre><code>{
+  "kind": "mayday",
+  "agent_id": "bcn_example1234",
+  "task": "daily-index-2026-06-01",
+  "reason": "upstream rate limit",
+  "safe_to_retry": true,
+  "next_attempt_after": "2026-06-01T19:30:00Z"
+}</code></pre>
+
+  <p>
+    That mayday can be routed through the same transport as a heartbeat. The receiving coordinator does not need to understand every internal detail of the blocked agent. It only needs to verify the signature, check freshness, and apply policy: wait, retry, escalate, or reassign.
+  </p>
+
+  <h2>Where Beacon Fits</h2>
+  <p>
+    Beacon is most useful when agents are not all running inside one process. A single orchestrator can keep state in memory, but a distributed system needs messages that survive process boundaries and transport changes. A signed Beacon envelope can move from a local LAN test to a webhook receiver to a public agent card without changing the core payload.
+  </p>
+
+  <p>
+    The design also keeps the human operator in the loop. An operator can inspect a heartbeat, see which agent signed it, read the contract, and understand whether a mayday deserves attention. That matters because the hardest failures in agent systems are often coordination failures: duplicate work, stale assumptions, invisible timeouts, and unclear ownership.
+  </p>
+
+  <h2>Next Steps</h2>
+  <ol>
+    <li>Read the official <a href="https://github.com/Scottcjn/beacon-skill">beacon-skill repository</a>.</li>
+    <li>Run the local webhook loopback flow on Linux/macOS/WSL.</li>
+    <li>Add nonce storage and timestamp freshness checks to the Python heartbeat demo.</li>
+    <li>Write one contract for an agent you already use, then define when that agent should send a mayday.</li>
+    <li>Publish a <code>.well-known/beacon.json</code> agent card when you are ready for discovery.</li>
+  </ol>
+
+  <p>
+    The simplest useful Beacon deployment is not a grand multi-agent city. It is one agent, one signed heartbeat, one receiver that verifies it, and one policy for what happens when the heartbeat stops. Start there, and the rest of the coordination layer has somewhere solid to grow.
+  </p>
+</article>
+</main>
+</body>
+</html>
