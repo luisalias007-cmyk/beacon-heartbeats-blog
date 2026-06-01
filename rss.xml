@@ -5,7 +5,14 @@
     <link>https://luisalias007-cmyk.github.io/beacon-heartbeats-blog/</link>
     <description>Beacon tutorials for AI agent coordination.</description>
     <language>en-us</language>
-    <lastBuildDate>Mon, 01 Jun 2026 18:45:00 GMT</lastBuildDate>
+    <lastBuildDate>Mon, 01 Jun 2026 19:05:00 GMT</lastBuildDate>
+    <item>
+      <title>Beacon Contracts and Mayday Signals for Reliable AI Agents</title>
+      <link>https://luisalias007-cmyk.github.io/beacon-heartbeats-blog/contracts-mayday.html</link>
+      <guid>https://luisalias007-cmyk.github.io/beacon-heartbeats-blog/contracts-mayday.html</guid>
+      <pubDate>Mon, 01 Jun 2026 19:05:00 GMT</pubDate>
+      <description>A practical Beacon tutorial for combining signed heartbeats, contracts, and mayday escalation in AI agent systems.</description>
+    </item>
     <item>
       <title>Getting Started with Beacon 2.x: Heartbeats for AI Agents</title>
       <link>https://luisalias007-cmyk.github.io/beacon-heartbeats-blog/</link>
