@@ -1,0 +1,52 @@
+{
+  "summary": {
+    "agent_id": "bcn_db7a3d86ba49",
+    "profile_url": "https://rustchain.org/beacon/agent/bcn_db7a3d86ba49",
+    "successful_heartbeats": 4,
+    "first_heartbeat_utc": "2026-06-01T23:25:28.589Z",
+    "last_heartbeat_utc": "2026-06-01T23:41:00.383Z",
+    "elapsed_seconds_first_to_last": 932,
+    "elapsed_minutes_first_to_last": 15.53,
+    "bounty_issue": "https://github.com/Scottcjn/rustchain-bounties/issues/162",
+    "payout_target": "luisalias007-cmyk",
+    "payout_registration": "https://github.com/Scottcjn/rustchain-bounties/issues/12816"
+  },
+  "heartbeats": [
+    {
+      "sent_at": "2026-06-01T23:25:28.589Z",
+      "status": 200,
+      "agent_id": "bcn_db7a3d86ba49",
+      "ok": true,
+      "beat_count": 1,
+      "assessment": "active",
+      "relay_status": "alive"
+    },
+    {
+      "sent_at": "2026-06-01T23:27:44.030Z",
+      "status": 200,
+      "agent_id": "bcn_db7a3d86ba49",
+      "ok": true,
+      "beat_count": 2,
+      "assessment": "active",
+      "relay_status": "alive"
+    },
+    {
+      "sent_at": "2026-06-01T23:35:13.437Z",
+      "status": 200,
+      "agent_id": "bcn_db7a3d86ba49",
+      "ok": true,
+      "beat_count": 3,
+      "assessment": "active",
+      "relay_status": "alive"
+    },
+    {
+      "sent_at": "2026-06-01T23:41:00.383Z",
+      "status": 200,
+      "agent_id": "bcn_db7a3d86ba49",
+      "ok": true,
+      "beat_count": 4,
+      "assessment": "active",
+      "relay_status": "alive"
+    }
+  ]
+}
